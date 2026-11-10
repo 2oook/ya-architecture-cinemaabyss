@@ -33,7 +33,7 @@ helm uninstall cinemaabyss
 | Name                | Description                                     | Value           |
 |---------------------|-------------------------------------------------|-----------------|
 | `global.namespace`  | Namespace to deploy all resources               | `cinemaabyss`   |
-| `global.domain`     | Domain name for the application                 | `cinemaabyss.example.com` |
+| `global.domain`     | Domain name for the application                 | `cinemaabyss.127.0.0.1.nip.io` |
 
 ### Database Parameters
 

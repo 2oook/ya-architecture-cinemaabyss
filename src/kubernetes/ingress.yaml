@@ -4,15 +4,23 @@ metadata:
   name: cinemaabyss-ingress
   namespace: cinemaabyss
   annotations:
-    kubernetes.io/ingress.class: "nginx"
     nginx.ingress.kubernetes.io/ssl-redirect: "false"
 spec:
+  # Replaces the deprecated kubernetes.io/ingress.class annotation;
+  # both cannot be set at the same time.
+  ingressClassName: nginx
   rules:
-    - host: cinemaabyss.example.com
+    - host: cinemaabyss.127.0.0.1.nip.io
       http:
         paths:
-          #дополните конфигурацию для /
-          ...
+          # Everything goes through the proxy (API Gateway, Strangler Fig)
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: proxy-service
+                port:
+                  number: 80
           - path: /api/events
             pathType: Prefix
             backend:

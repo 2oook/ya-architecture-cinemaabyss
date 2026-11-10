@@ -1,0 +1,11 @@
+# Use this workspace to collaborate
+workspace:
+  id: ""
+
+localResources:
+  collections:
+    - ../CinemaAbyss.postman_collection.json
+  environments:
+    - ../docker.environment.json
+    - ../kubernetes.environment.json
+    - ../local.environment.json
