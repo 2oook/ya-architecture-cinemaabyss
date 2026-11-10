@@ -154,3 +154,5 @@ go.work
 
 # Postman tests reports
 tests/postman/reports/
+# Helm values with the GHCR token
+src/kubernetes/helm/values.local.yaml

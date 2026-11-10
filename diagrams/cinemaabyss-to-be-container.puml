@@ -1,0 +1,121 @@
+@startuml cinemaabyss-to-be-container
+!include_once <C4/C4_Component>
+
+LAYOUT_LEFT_RIGHT()
+skinparam nodesep 70
+skinparam ranksep 110
+
+title CinemaAbyss — To-Be Architecture (C4: Container)
+
+Person(user, "User", "Смотрит контент по единой подписке")
+
+System_Boundary(clients, "Clients") {
+    Container(web, "Web", "Browser", "Веб-интерфейс")
+    Container(mobile, "Mobile App", "iOS / Android", "Мобильный интерфейс")
+    Container(tv, "Smart TV App", "Smart TV", "Интерфейс для ТВ")
+}
+
+System_Boundary(cinema, "CinemaAbyss") {
+
+    Container(gateway, "API Gateway", "Kong", "Единая точка входа: маршрутизация запросов к сервисам")
+
+    Boundary(user_mgmt, "User Management") {
+        Container(identity, "Identity Service", "Go", "Identity Context: аутентификация, профиль пользователя")
+        Container(favorites, "Favorites Service", "Go", "Favorites Context: папка с избранным")
+        ContainerDb(identity_db, "Identity DB", "PostgreSQL", "Пользователи")
+        ContainerDb(favorites_db, "Favorites DB", "PostgreSQL", "Избранное")
+    }
+
+    Boundary(catalog, "Movie Catalog") {
+        Container(metadata, "Movie Metadata Service", "Go", "Movie Metadata Context: жанры, актёры, оценки, подборки")
+        Container(video, "Video Service", "Go", "Video Context: доступ к контенту")
+        ContainerDb(metadata_db, "Metadata DB", "PostgreSQL", "Метаданные о фильмах, подборки")
+        ContainerDb(video_db, "Video Storage", "S3", "Видео")
+    }
+
+    Boundary(reco, "Recommendations") {
+        Container(reco_int, "Recommendations Integration Service", "Go", "Recommendations Integration Context")
+    }
+
+    Boundary(subscription, "Subscription") {
+        Container(subs, "Subscription Management Service", "Go", "Subscription Management Context: подписки")
+        Container(discounts, "Discounts Service", "Go", "Discounts Context: скидки")
+        Container(loyalty_int, "Loyalty Integration Service", "Go", "Loyalty Integration Context")
+        Container(market_int, "Marketplace Integration Service", "Go", "Marketplace Integration Context")
+        ContainerDb(subs_db, "Subscription DB", "PostgreSQL", "Подписки")
+        ContainerDb(discounts_db, "Discounts DB", "PostgreSQL", "Скидки")
+    }
+
+    Boundary(payments, "Payments") {
+        Container(payment, "Payment Processing Service", "Go", "Payment Processing Context: платежи")
+        Container(payment_int, "Payment Systems Integration Service", "Go", "Payment Systems Integration Context")
+        ContainerDb(payment_db, "Payment DB", "PostgreSQL", "Платежи")
+    }
+
+    ContainerQueue(kafka, "Kafka", "Apache Kafka", "Шина событий между сервисами")
+}
+
+System_Ext(content_ext, "Content Sources", "Другие сервисы и открытые источники")
+System_Ext(reco_ext, "Recommendation System", "Сторонняя система подборок")
+System_Ext(loyalty_ext, "Loyalty Services", "Внешние сервисы лояльности")
+System_Ext(market_ext, "Marketplaces", "Внешние маркетплейсы")
+System_Ext(pay_ext, "Payment Systems", "Внешние платёжные системы")
+
+' Колонки слева направо: сервисы -> базы данных -> Kafka -> внешние системы
+Lay_D(identity_db, kafka)
+Lay_D(subs_db, kafka)
+Lay_D(kafka, content_ext)
+Lay_D(kafka, reco_ext)
+Lay_D(kafka, loyalty_ext)
+Lay_D(kafka, market_ext)
+Lay_D(kafka, pay_ext)
+
+' Пользователь и клиенты
+Rel(user, web, "Использует")
+Rel(user, mobile, "Использует")
+Rel(user, tv, "Использует")
+
+Rel(web, gateway, "Запросы", "HTTPS/REST")
+Rel(mobile, gateway, "Запросы", "HTTPS/REST")
+Rel(tv, gateway, "Запросы", "HTTPS/REST")
+
+' Единая точка входа
+Rel(gateway, identity, "Аутентификация, профиль", "REST")
+Rel(gateway, favorites, "Избранное", "REST")
+Rel(gateway, metadata, "Выбор и оценка фильма, подборка", "REST")
+Rel(gateway, video, "Запрос на просмотр, ссылка на поток", "REST")
+Rel(gateway, subs, "Подписка", "REST")
+Rel(gateway, payment, "Оплата", "REST")
+
+' Базы данных
+Rel(identity, identity_db, "Читает/пишет", "SQL")
+Rel(favorites, favorites_db, "Читает/пишет", "SQL")
+Rel(metadata, metadata_db, "Читает/пишет", "SQL")
+Rel(video, video_db, "Читает/пишет", "S3 API")
+Rel(subs, subs_db, "Читает/пишет", "SQL")
+Rel(discounts, discounts_db, "Читает/пишет", "SQL")
+Rel(payment, payment_db, "Читает/пишет", "SQL")
+
+' Синхронное взаимодействие внутри системы
+Rel_R(subs, discounts, "Получает скидку", "REST")
+Rel_R(payment, payment_int, "Проводит платёж", "REST")
+
+' Асинхронное взаимодействие через Kafka
+Rel(favorites, kafka, "Публикует события избранного")
+Rel(metadata, kafka, "Публикует события оценок, читает подборки")
+Rel(video, kafka, "Читает события подписок")
+Rel(reco_int, kafka, "Читает события избранного и оценок, публикует подборки")
+Rel(subs, kafka, "Публикует события подписок, читает события платежей и маркетплейсов")
+Rel(loyalty_int, kafka, "Читает события подписок")
+Rel(market_int, kafka, "Публикует события маркетплейсов")
+Rel(payment, kafka, "Публикует события платежей")
+
+' Внешние системы
+Rel(video, content_ext, "Контент", "HTTPS")
+Rel(reco_int, reco_ext, "Данные и подборки", "REST")
+Rel(loyalty_int, loyalty_ext, "Обмен данными", "REST")
+Rel(market_int, market_ext, "Обмен данными", "REST")
+Rel(payment_int, pay_ext, "Платежи", "REST")
+
+SHOW_LEGEND()
+@enduml
